@@ -17,29 +17,71 @@
  *
  *
  * */
+import java.util.*;
+
+
 public class FileTable {
-    private Vector table;         // the actual entity of this file table
+    public Vector table;         // the actual entity of this file table
     private Directory dir;        // the root directory
+    public byte tempArray[] = new byte[11];
+
 
     public FileTable( Directory directory ) { // constructor
-        table = new Vector( );     // instantiate a file (structure) table
-        dir = directory;           // receive a reference to the Director
-    }                             // from the file system
+        table = new Vector( );                // instantiate a file (structure) table
+        dir = directory;                      // receive a reference to the Director
+    }                                           // from the file system
 
     // major public methods
+    
+    //allocates a new FileTableEntry when a new file is opened
     public synchronized FileTableEntry falloc( String filename, String mode ) {
+        //assume this is the first time this file is opened
+        //create new iNode
+        Inode iNode = new Inode();
+
         // allocate a new file (structure) table entry for this file name
         // allocate/retrieve and register the corresponding inode using dir
+        FileTableEntry fileEntry = new FileTableEntry(iNode, dir.ialloc(filename), mode);
+
         // increment this inode's count
+        iNode.count++;
+
         // immediately write back this inode to the disk
+        for(int i = 0; i < tempArray.length; i ++){
+            tempArray[i] = (byte)iNode.directPtrs[i];
+        }
+        SysLib.rawwrite(dir.ialloc(filename), tempArray);
+
+        //add to table structure
+        table.add(fileEntry);
+
         // return a reference to this file (structure) table entry
+        return fileEntry;
     }
 
     public synchronized boolean ffree( FileTableEntry e ) {
-        // receive a file table entry reference
-        // save the corresponding inode to the disk
-        // free this file table entry.
-        // return true if this file table entry found in my table
+        for(int j = 0; j < table.size(); j++){
+            table.get(j);
+            if(table.get(j) == e){
+                // receive a file table entry reference
+                // save the corresponding inode to the disk
+                for(int i = 0; i < e.inode.directPtrs.length; i++){
+                    tempArray[i] = (byte)e.inode.directPtrs[i];
+                }
+
+                SysLib.rawwrite(e.iNumber, tempArray);
+
+                // free this file table entry.
+                table.remove(e);
+                e.count--;
+                // return true if this file table entry found in my table
+                return true;
+            }
+            if (j == table.size() - 1 && table.get(j) != e){
+                return false;
+            }
+        }
+        return true;
     }
 
     public synchronized boolean fempty( ) {
