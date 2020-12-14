@@ -5,7 +5,7 @@
  * (1) the length of the corresponding file
  * (2) the number of file (structure) table entries that point to this inode
  * (3) the flag to indicate if it is unused (= 0), used(= 1),
- * or in some other status (= 2, 3, 4, ..., i.e., what/how the file is currently being used for).
+ * read(= 2), write(= 3), delete(= 4), what/how the file is currently being used for).
  *
  * Note that 16 inodes can be stored in one block.
  *
@@ -23,9 +23,10 @@
  * that saves this inode information to the iNumber-th inode in the disk,
  * where iNumber is given as an argument.
  *
- * (2) Create a Vector<Inode> object that maintains all inode on memory, is shared among all threads, and is exclusively access by each thread.
+ * (2) Create a Vector<Inode> object that maintains all inode on memory, is shared among all threads, 
+ * and is exclusively access by each thread.
  *
- *
+ * Edits by: Jonathan Young 12-9-2020
  *
  *
  * */
@@ -35,15 +36,15 @@ public class Inode {
 
     public int fileLength;                                  // file size in bytes
     public short fileTableCount;                            // # file-table entries pointing to this
-    public short statusFlag;                                // 0 = unused, 1 = used, ... MORE THAN JUST 0 AND 1 (SEE ABOVE)
-    public short directPtrs[] = new short[directSize];      // direct pointers
+    public short statusFlag;                                // 0 = unused, 1 = used,
+    public short directPtrs[] = new short[directSizePtr];   // direct pointers
     public short indirectPtr;                               // a indirect pointer
 
     // a default constructor
     Inode( ) {
-        length = 0;
-        count = 0;
-        flag = 1;
+        fileLength = 0;
+        fileTableCount = 0;
+        statusFlag = 1;       // flag is initialized to used
         for ( int i = 0; i < directSizePtr; i++ )
             directPtrs[i] = -1;
         indirectPtr = -1;
@@ -58,6 +59,10 @@ public class Inode {
          * this constructor reads the corresponding disk block, locates the corresponding inode information in that block,
          * and initializes a new inode with this information.
          * */
+        int blockNum = (iNumber / 16) + 1;  // 16 iNodes stored in one block
+        byte[] iBlock = new byte[Disk.blockSize];   // new block by apple
+
+
     }
 
     // save to disk as the i-th inode
