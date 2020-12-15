@@ -88,4 +88,13 @@ public class FileTable {
         return table.isEmpty( );  // return if table is empty
     }                            // should be called before starting a format
 
+    public FileTableEntry getEntry(short inumber){
+       for(int i = 0; i < table.size(); i++){
+           FileTableEntry fileEnt = new FileTableEntry ();
+
+           if(table.get(i)){
+               return table.get(i);
+           }
+       }
+    }
 }

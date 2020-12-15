@@ -5,8 +5,9 @@ public class Directory {
     private static int maxChars = 30; // max characters of each file name
 
     Pair pair = new Pair();
-    HashSet<pair> filenameInumberMap = new HashSet<pair>();
+    HashMap<String, Short> filenameInumberMap = new HashMap<String, Short>();
     //change to set of type pair index = maxInumber-1
+
 
 
     // Directory entries
