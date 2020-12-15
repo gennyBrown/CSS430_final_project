@@ -1,4 +1,4 @@
-/**
+/*
  * The file system maintains the file (structure) table shared among all user threads.
  * When a user thread opens a file, it follows these steps:
  *
@@ -16,12 +16,14 @@
  * (4) The user thread registers a reference to this file (structure) table entry in its file descriptor table entry of the TCB.
  *
  *
+ * Created by Genny Brown
+ * 12-15-2020
  * */
 import java.util.*;
 
 
 public class FileTable {
-    public Vector table;         // the actual entity of this file table
+    public Vector <FileTableEntry> table;         // the actual entity of this file table
     private Directory dir;        // the root directory
     public byte tempArray[] = new byte[11];
 
@@ -88,4 +90,14 @@ public class FileTable {
         return table.isEmpty( );  // return if table is empty
     }                            // should be called before starting a format
 
+
+    //returns the entry from a given inumber
+    public FileTableEntry getEntry(short inumber){
+       for(int i = 0; i < table.size(); i++){
+           if(table.get(i).iNumber == inumber){
+               return table.get(i);
+           }
+       }
+       return null;
+    }
 }

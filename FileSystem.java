@@ -28,10 +28,11 @@ public class FileSystem{
     }
 
     void sync( ){
+
         //iterate through table to write all inodes to disk
             //write all inodes to the drive
         //do not delete inodes
-
+        SysLib.sync();
 
     }
 
@@ -47,46 +48,105 @@ public class FileSystem{
      //   return false;
     //}
 
-    FileTableEntry open( String filename, String mode ){
-        //Use set to capture filenames
-        //first deal with mode
-        //look if set to see if open
-        for(int i = 0; i < filetable.table.size(); i++){
-            //if(filetable.table.indexOf())
-
+    /*
+     * Opens the file specified by the fileName string in the given mode
+     * (where "r" = ready only, "w" = write only, "w+" = read/write, "a" = append).
+     * The call allocates a new file descriptor, fd to this file.
+     * The file is created if it does not exist in the mode "w", "w+" or "a".
+     * SysLib.open must return a negative number as an error value if the file does not exist in the mode "r".
+     * */
+    synchronized FileTableEntry open( String filename, String mode ){
+        //validate
+        if(!(mode == "r" || mode == "w"|| mode == "w+" || mode== "a")){
+            return null;
         }
-        // if not open
-        //if so get inumber, point to the inode
+        //open in read
+        if(mode == "r"){
+            //if already open
+          if(directory.filenameInumberMap.containsKey(filename) == true){
+              //check mode open in
+              //if same mode
+              if(filetable.getEntry(directory.namei(filename)).mode == mode){
+                  // increment count
+                  filetable.getEntry(directory.namei(filename)).count++;
 
-        //add to the set of open files
-        openFiles.add(filename);
-        return filetable.falloc(filename, mode);
+                  //return reference to entry
+                  return filetable.getEntry(directory.namei(filename));
+              }
+              //if different
+              if(filetable.getEntry(directory.namei(filename)).mode != mode){
+                  //create new entry, connect to same inode
+                  FileTableEntry newEnt
+                          = new FileTableEntry(filetable.getEntry(directory.namei(filename)).inode,
+                          directory.namei(filename), mode);
+
+                  //return reference to entry
+                  return newEnt;
+              }
+          }
+            //if not open
+          if(directory.filenameInumberMap.containsKey(filename) == false){
+
+              //return error
+              return null;
+          }
+
+        }else if(mode == "w" || mode == "w+" || mode == "a"){
+
+            //check mode open in
+            //if same mode
+            if(filetable.getEntry(directory.namei(filename)).mode == mode){
+                // increment count
+                filetable.getEntry(directory.namei(filename)).count++;
+
+                //return reference to entry
+                return filetable.getEntry(directory.namei(filename));
+            }
+            //if different
+            if(filetable.getEntry(directory.namei(filename)).mode != mode){
+                //create new entry, connect to same inode
+                FileTableEntry newEnt
+                        = new FileTableEntry(filetable.getEntry(directory.namei(filename)).inode,
+                        directory.namei(filename), mode);
+
+                //return reference to entry
+                return newEnt;
+            }
+        }
+        if ((filetable.getEntry(directory.namei(filename)).mode != mode)){
+            return filetable.falloc(filename, mode);
+        }
+        return null;
     }
-//************************************ CLOSE IS NOT FINISHED ***********************
+
     boolean close( FileTableEntry ftEnt ){
         //removes the entry from the file descriptor table in tCB
         //decrements count in entry
 
+        /* Closes the file corresponding to fd, commits all file transactions on this file
+        Unregisters fd from the user file descriptor table of the calling thread's TCB.
+        The return value is 0 in success, otherwise -1.
+        * */
 
 
        //check set to see if open
         for(int i= 0; i< filetable.table.size(); i++){
             //if the entry is in the table, it's open
-            if(filetable.table.indexOf(ftEnt) == i ){
-                //check inode count
-                if(ftEnt.count > 0){
-                    //if not 0, can't close
-                    return false;
-                    //if == 0 delete
-                } else if(ftEnt.count == 0){
-                    /*
-                     * need to map the ftEnt to the filename
-                     * delete(filename);
-                     *
-                     */
-                    return true;
-                }
+            if(filetable.table.contains(ftEnt) ==  true){
 
+                //if threads are using entry
+                if(ftEnt.count > 0){
+                    //decrement count
+                    ftEnt.count--;
+
+                    //entry closed
+                    return true;
+
+                //if no threads are using the entry
+                } else if(ftEnt.count == 0){
+                    //can't decrement count
+                    return false;
+                }
             }
         }
         return false;
@@ -134,7 +194,7 @@ public class FileSystem{
         * The return value is the number of bytes
         *  that have been written, or a negative value upon an error.
         * */
-      
+
         return 0;
     }
 
@@ -142,8 +202,9 @@ public class FileSystem{
         //deallocate all blocks associated with the given entry
         //not all blocks in table
 
+        SysLib.format(ftEnt.count);
         //call format(4)
-        return false;
+        return true;
     }
 
     boolean delete( String filename ){
@@ -152,7 +213,7 @@ public class FileSystem{
         //will fail if file is still open by another thread
         //blocks will need to be deallocated
 
-        //get iNumber foe filename
+        //get iNumber for filename
         //call dir.ifree(iNumber);
         return false;
     }
@@ -252,4 +313,5 @@ public class FileSystem{
         return offset;
     }
 }// end class
+
 

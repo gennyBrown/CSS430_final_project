@@ -1,9 +1,13 @@
 import java.util.*;
+//import javafx.util.*;
 
 public class Directory {
     private static int maxChars = 30; // max characters of each file name
-    public HashMap<String, Short> filenameInumberMap = new HashMap<String, Short>();
+
+    Pair pair = new Pair();
+    HashMap<String, Short> filenameInumberMap = new HashMap<String, Short>();
     //change to set of type pair index = maxInumber-1
+
 
 
     // Directory entries
@@ -75,14 +79,21 @@ public class Directory {
         // into bytes.
 
         int offset = 0;
-        byte[] dirToByteArray = new byte[fsize.length + fnames.length];
+        byte[] dirToByteArray = new byte[fsize.length + fnames.length + 1];
 
         for(int i = 0; i < fsize.length; i ++){
-
+            SysLib.int2bytes(fsize[i], dirToByteArray, offset);
+            offset += 4;
+        }
+        for(int d = 0; d < fnames.length; d++){
+            for(int a = 0; a < fnames[d].length; a++){
+                SysLib.int2bytes((int)fnames[d][a], dirToByteArray, offset);
+                offset++;
+            }
         }
         //SysLib.int2bytes(fsizes[i], fromDirectory, offset)
 
-        return new byte[0];
+        return dirToByteArray;
     }
 
     public short ialloc( String filename ) {
@@ -106,12 +117,11 @@ public class Directory {
         return newInumber;                  //return iNumber
     }
 
-    public boolean ifree( short iNumber ) {
-        // deallocates this inumber (inode number)
-        // the corresponding file will be deleted.
 
-        //check to see if directory
-        if(iNumber == 0){
+    // deallocates this inumber (inode number)
+    // the corresponding file will be deleted.
+    public boolean ifree( short iNumber ) {
+        if(iNumber == 0){               //check to see if in directory
             return false;
         }
 
@@ -120,13 +130,16 @@ public class Directory {
             if(filenameInumberMap.containsValue(iNumber) == true){
                 //once found, remove from map
                 filenameInumberMap.remove(filenameInumberMap.get(i));
-                //change flag to be deleted in inode
-                //return to free list in superBlock
 
                 //set fsize[iNumber ] == 0
+                fsize[iNumber] = 0;
                 //do the same to fnames
+                for(int j = 0; j < fnames.length; j++){
+                    for(int k = 0; k < fnames[j].length; k++){
+                        fnames[j][k] = 0;
+                    }
+                }
                 return true;
-
             }
         }
         return false;
