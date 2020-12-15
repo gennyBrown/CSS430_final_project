@@ -38,7 +38,9 @@ public class Inode {
     public short fileTableCount;                            // # file-table entries pointing to this
     public short statusFlag;                                // 0 = unused, 1 = used,
     public short directPtrs[] = new short[directSizePtr];   // direct pointers
-    public short indirectPtr;                               // a indirect pointer
+    public short indirectPtr;                               // indirect pointer, points to an index block with 256 indexes (all shorts)
+    // 11 direct pointers and 1 indirect pointer. Indirect pointer points to an index block which includes 256 indexes = 11 * 512B + 256 * 512B
+    // 5632B + 131,072B = 136,704B (Max size of an iNode)
 
     // a default constructor
     Inode( ) {
@@ -52,21 +54,46 @@ public class Inode {
 
     // retrieving inode from disk
     Inode( short iNumber ) {
-        // design it by yourself.
         /**
          * You will need a constructor that retrieves an existing inode from the disk into the memory.
          * Given an inode number, termed inumber,
          * this constructor reads the corresponding disk block, locates the corresponding inode information in that block,
          * and initializes a new inode with this information.
          * */
-        int blockNum = (iNumber / 16) + 1;  // 16 iNodes stored in one block
+        int blockNum = (iNumber / 16) + 1;  // 16 iNodes stored in one block, picks the next block
+        // create offset, which will read 32 bytes. Mod by 16 for each iNode in a block
+        int offset = (iNumber % 16) * 32;
         byte[] iBlock = new byte[Disk.blockSize];   // new block by apple
-
+        SysLib.rawread(blockNum, iBlock);   // read from that block
+        // convert iBlock to set fileLength, fileTableCount, and statusFlag
+        fileLength = SysLib.bytes2int(iBlock, offset);  // sets file length based on offset (32 bytes)
+        fileTableCount = SysLib.bytes2short(iBlock, offset + 4);   // fileTable spaced by fileLength offset (4 bytes)
+        statusFlag  = SysLib.bytes2short(iBlock, offset + 2);     // statusFlag spaced by fileTableCount offset (2 bytes)
+        
+        for ( int i = 0; i < directSizePtr; i++ ){ // loop through pointers by pointer size offset (2 bytes)
+            offset += 2;
+            directPtrs[i] = SysLib.bytes2short(iBlock, offset);
+        }
+        indirectPtr = SysLib.bytes2short(iBlock, offset + 2);   // space for indirect pointer offset (2 bytes)
 
     }
 
     // save to disk as the i-th inode
     int toDisk( short iNumber ) {
-        // design it by yourself.
+        int blockNum = (iNumber / 16) + 1;  // 16 iNodes stored in one block, picks the next block
+        int offset = iNodeSize * iNumber;   // offset based off size of inode (32B) spaced by the argument iNumber     
+        byte[] iBlock = new byte[Disk.blockSize];   // new block by apple
+        SysLib.rawread(blockNum, iBlock);   // read from that block
+        // short2byte(short to convert, byte array, offset destination)
+        SysLib.short2byte(fileLength, iBlock, offset);
+        SysLib.short2byte(fileTableCount, iBlock, offset + 4);  // fileTable spaced by fileLength offset (4 bytes)
+        SysLib.short2byte(statusFlag, iBlock, offset + 2);  // statusFlag spaced by fileTableCount offset (2 bytes)
+        // loop for each pointer by pointer size offset (2 bytes)
+        for (int i = 0; i < directSizePtr; i++){
+            offset += 2;
+            SysLib.short2byte(directPtrs[i], iBlock, offset);
+        }
+        SysLib.short2byte(indirectPtr, iBlock, offset + 2); // space for indirect pointer offset (2 bytes)
+        SysLib.rawwrite(blockNum, iBlock);  // write to disk
     }
 }
