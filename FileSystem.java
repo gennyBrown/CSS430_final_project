@@ -36,6 +36,7 @@ public class FileSystem{
 
     }
 
+    // marked as type int? If the system makes this call would it expect an int return? 
     boolean format( int files ){
         /*
         * Formats the disk (Disk.java’s data contents).
@@ -120,6 +121,7 @@ public class FileSystem{
         return null;
     }
 
+    // marked as an int? need to change type to synchronized or call sync()?
     boolean close( FileTableEntry ftEnt ){
         //removes the entry from the file descriptor table in tCB
         //decrements count in entry
@@ -172,9 +174,6 @@ public class FileSystem{
 
                 The return value is the number of bytes that have been read, or a negative value upon an error.
         */
-        // iNode flags unused (= 0), used(= 1), read(= 2), write(= 3), delete(= 4)
-        int toRead = bufffer.length;    // number of bytes to read from file
-        int retRead = 0;    // return value of bytes read
         // ***check status of node***
         // unused or delete exit
         // should not be able to delete while reading
@@ -182,16 +181,26 @@ public class FileSystem{
         if (ftEnt.inode.statusFlag == 0 || ftEnt.inode.statusFlag == 4){  
             return -1;  
         }
+        // iNode flags unused (= 0), used(= 1), read(= 2), write(= 3), delete(= 4)
+        int retRead = 0;    // return value of bytes read
+        // read starting at the position currently pointed to by the seek pointer
+        int offset = ftEnt.seekPtr / Disk.blockSize;
+        // block number
+        int blockNum = ftEnt.inode.findTargetBlock(offset);
+        // find remaining file size
+        int remainBytes = Disk.blockSize - offset;
+        // compare amount 'buffer.length' to the size of the (file size - offset)
+        int toRead = remainBytes < buffer.length ? remainBytes : buffer.length;    // number of bytes to read from file
+
         // can it read while it writes? Assuming it can up to the point the request is made
         // if flag is set to read will this stop writing calls? (only multi-threading?)
         ftEnt.inode.statusFlag = 2;     // set to read
         // create block for buffer
         byte[] iBlock = new byte[Disk.blockSize];
-        int offset = ftEnt.seekPtr / Disk.blockSize;
         // blockNum will need Inode seekPtr from ftEnt. Assuming seekPtr is > 0
         // offset < ftEnt.inode.directPtrs.length ? ftEnt.inode.directPtrs[offset] : indirect pointer
-        int blockNum = ftEnt.inode.directPtrs[offset];
-        while (retRead < toRead){
+        // int blockNum = ftEnt.inode.directPtrs[offset];
+        //while (retRead < toRead){
             // make sure read is valid
             if (SysLib.rawread(blockNum, iBlock) == -1) {
                 return -1;
@@ -199,14 +208,18 @@ public class FileSystem{
             // TODO: check for data in other blocks? 
 
             retRead = toRead;
-            // promote pointer to end of file
+            // increments the seek pointer by the number of bytes to have been read
             seek(ftEnt, retRead, SEEK_CUR);
-
-
+        //}
+        //decrement count of threads at that file table entry
+        if(ftEnt.count > 0){
+            ftEnt.count--;
         }
-        // return flag ot used
+        // return flag to used
         ftEnt.inode.statusFlag = 1;
-        return retRead;
+    //}
+    sync();
+    return retRead;
     }
 
     int write (FileTableEntry ftEnt, byte[] buffer ){
@@ -227,9 +240,38 @@ public class FileSystem{
         * The return value is the number of bytes
         *  that have been written, or a negative value upon an error.
         * */
+        if (ftEnt == null){
+            return -1;
+        }
+        // check status flag for validity
+        // iNode flags unused (= 0), used(= 1), read(= 2), write(= 3), delete(= 4)
+        if (ftEnt.inode.statusFlag == 4){   // can't write to a deleted node
+            return -1;
+        }
+        int retBytes = 0;   // return number of bytes written
+        // write starting at the position currently pointed to by the seek pointer
+        int offset = ftEnt.seekPtr / Disk.blockSize;
+        // block number
+        int blockNum = ftEnt.inode.findTargetBlock(offset);
+        // find remaining file size
+        int remainBytes = Disk.blockSize - offset;
+        // compare amount 'buffer.length' to the size of the (file size - offset)
+        int toWrite = remainBytes < buffer.length ? remainBytes : buffer.length;    // number of bytes to read from file
+        // set to write
+        ftEnt.inode.statusFlag = 3;     
+        // create block for buffer
+        byte[] iBlock = new byte[Disk.blockSize];
+        // assumming writing cannot happen unless prompted by other flags
 
-        int bufLength = buffer.length;
-        return 0;
+        //SysLib.rawread(blockNum, iBlock);
+        SysLib.rawwrite(blockNum, iBlock);
+        seek(ftEnt, toWrite, SEEK_CUR);
+        if (ftEnt.count > 0){
+            ftEnt.count--;
+        }
+        ftEnt.inode.statusFlag = 1;
+
+        return retBytes;
     }
 
     private boolean dealllocAllBlocks( FileTableEntry ftEnt ){

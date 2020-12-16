@@ -79,8 +79,14 @@ public class Superblock {
 
     // sync(): Write back totalBlocks, inodeBlocks, and freeList to disk
 
-
-    // getFreeBlock(): Dequeue the top block from the free list
+    // : Dequeue the top block from the free list
+    public short getFreeBlock(){
+        short ret = (short)freeList;
+        byte[] iBlock = new byte[Disk.blockSize];
+        SysLib.rawread(freeList, iBlock);
+        freeList = SysLib.bytes2int(iBlock, 0);
+        return ret;
+    }
 
     // returnBlock(block?): Enqueue a given block to the end of the free list
 

@@ -39,6 +39,7 @@ public class Inode {
     public short statusFlag;                                // 0 = unused, 1 = used,
     public short directPtrs[] = new short[directSizePtr];   // direct pointers
     public short indirectPtr;                               // indirect pointer, points to an index block with 256 indexes (all shorts)
+    
     // 11 direct pointers and 1 indirect pointer. Indirect pointer points to an index block which includes 256 indexes = 11 * 512B + 256 * 512B
     // 5632B + 131,072B = 136,704B (Max size of an iNode)
 
@@ -103,7 +104,21 @@ public class Inode {
         acces or through indirect access by calculating the block index (number) where 
         the pointer is
         - will return the target block
+*/
+    int findTargetBlock(int offset){
+        if (offset < 0){
+            return -1;
+        }
+        // if offset is within direct pointer size, it is a direct pointer
+        if (offset < directSizePtr){
+            return directPtrs[offset];
+        }
+        byte[] iBlock = new byte[Disk.blockSize];   // one more thing
+        // block is in indirect block access, multiply by 2 for indirect index
+        return SysLib.bytes2int(iBlock, (offset - directSizePtr) * 2);
+    }
 
+/*
         boolean registerIndexBlock(the freeblock)
         - it is used to set the Index block for indirect access,  when the direct-blocks
         have all been used, you need an Index block for the first level indirect-access 
@@ -112,7 +127,29 @@ public class Inode {
         block goes and adds it to the inode.
         -  when indirect access is needed the index block will be the free block and will hold 
         an array of pointers to data blocks
+*/
+    boolean registerIndexBlock(int freeblock){
+        // if a direct pointer is open, this will return false
+        for (int i = 0; i < directSizePtr; i++){
+            if (directPtrs[i] < 1){
+                return false;
+            }
+        }
+        // don't reset an already assigned indirect pointer
+        if (indirectPtr > -1){
+            return false;
+        }
+        byte[] iBlock = new byte[Disk.blockSize];
+        SysLib.rawread(indirectPtr, iBlock);
+        // fill all indexes in indirect pointer with -1
+        for (int i = 0; i < 512; i += 2){
+            SysLib.int2bytes(0, iBlock, i);     // set all indirects to unused
+        }
+        SysLib.rawwrite(freeblock, iBlock);
+        return true;
 
+    }
+/*
         int registerTargetBlock(seekPtr,  freeblock)
         - registers a target block based on the seekPtr and the freeblock 
         - the target block is basically seekPtr/MAX_BLOCK_SIZE_BYTES, so if the block 
@@ -123,4 +160,30 @@ public class Inode {
         the direct and indirect respectively
 
     */
+    int registerTargetBlock(int seekP, int freeblock){
+        int targetBlock = seekP / Disk.blockSize;
+        if (targetBlock < directSizePtr){
+            for (int i = 0; i < directSizePtr; i++){
+                if (directPtrs[i] == -1){
+                    directPtrs[i] = (short)freeblock;
+                    return 0;
+                }
+            }
+            return -1;
+        }
+        // part of indirect addressing
+        if (indirectPtr < 0){   // indirect addressing has not be instantiated
+            return -2;
+        }
+        byte[] iBlock = new byte[Disk.diskSize];    // load indirect pointer
+        SysLib.rawread(indirectPtr, iBlock);
+        for (int i = 0; i < 512; i += 2){ // find first space in indirect
+            if (SysLib.bytes2int(iBlock, i) == 0){
+                SysLib.int2bytes(freeblock, iBlock, i);
+                SysLib.rawwrite(indirectPtr, iBlock);
+                return 0;
+            }
+        }   // no space in indirect space
+        return -2;
+    }
 }
