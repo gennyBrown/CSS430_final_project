@@ -1,20 +1,20 @@
+/*
+ * holds file descriptor <- name of entry (int)
+ * holds access mode
+ *      modes are:
+ *          read only
+ *          write only
+ *          read/write
+ *          append
+ * maintains the seeker pointer and the inode number of the file
+ *      inode is a class
+ *
+ * it is possible to have the same file open many times, thus many entries hold the same file
+ * each entry has its own seeker pointer
+ *      all eventually point to the same inode (class)
+ */
 
 public class FileTableEntry {
-    /**
-     * holds file descriptor <- name of entry (int)
-     * holds access mode
-     *      modes are:
-     *          read only
-     *          write only
-     *          read/write
-     *          append
-     * maintans the seeker pointer and the inode number of the file
-     *      inode is a class
-     *
-     * it is possible to have the same file open many times, thus many entries hold the same file
-     * each entry has its own seeker pointer
-     *      all eventully point to the same inode (class)
-     */
 
     public int seekPtr;                 //    a file seek pointer
     public final Inode inode;           //    a reference to its inode
