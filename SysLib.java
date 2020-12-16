@@ -85,9 +85,45 @@ public class SysLib {
         return Kernel.interrupt( Kernel.INTERRUPT_SOFTWARE,
 				 Kernel.CSYNC, 0, null );
     }
-    public static int format(int files){
+
+    public static int format(int files){                        //added for final project
         return Kernel.interrupt(Kernel.INTERRUPT_SOFTWARE,
-                Kernel.FORMAT, 0,null);
+                Kernel.FORMAT, files,null);
+    }
+    public static int open(String filename, String mode){         //added for final project
+        String[] args = {filename, mode};
+        return Kernel.interrupt(Kernel.INTERRUPT_SOFTWARE,
+                Kernel.OPEN, 0, (Object) args);
+    }
+
+    public static int read(FileTableEntry ftEnt, byte[] buffer){         //added for final project
+        return Kernel.interrupt(Kernel.INTERRUPT_SOFTWARE,
+                Kernel.READ,0, , buffer);
+
+    }
+    public static int seek(FileTableEntry ftEnt, int offset, int whence){         //added for final project
+        int[] seekargs = {offset, whence};
+        return  Kernel.interrupt(Kernel.INTERRUPT_SOFTWARE,
+                Kernel.SEEK, 0, seekargs);
+    }
+
+    public static int delete(String filename){                          //added for final project
+        return  Kernel.interrupt(Kernel.INTERRUPT_SOFTWARE,
+                Kernel.DELETE, 0, filename);
+    }
+
+    public static int fsize(FileTableEntry ftEnt){                       //added for final project
+        return  Kernel.interrupt(Kernel.INTERRUPT_SOFTWARE,
+                Kernel.SIZE, 0, ftEnt);
+    }
+
+    public static int write(FileTableEntry ftEnt, byte[] buffer){                    //added for final project
+        return Kernel.interrupt(Kernel.INTERRUPT_SOFTWARE,
+                Kernel.WRITE, 0, buffer);
+    }
+    public static int close(FileTableEntry ftEnt){                               //added for final project
+        return Kernel.interrupt(Kernel.INTERRUPT_SOFTWARE,
+                Kernel.CLOSE, 0, ftEnt);
     }
 
     public static String[] stringToArgs( String s ) {
