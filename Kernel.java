@@ -55,6 +55,7 @@ public final static int ERROR = -1;
 private static Scheduler scheduler;
 private static Disk disk;
 private static Cache cache;
+private static FileSystem fs;           //added for final project
 
 // Synchronized Queues
 private static SyncQueue waitQueue;  // for threads to wait for their child
@@ -88,6 +89,9 @@ case INTERRUPT_SOFTWARE: // System calls
     // instantiate synchronized queues
     ioQueue = new SyncQueue( );
     waitQueue = new SyncQueue( scheduler.getMaxThreads( ) );
+
+    fs = new FileSystem(1000);      //added for final project
+
     return OK;
     case EXEC:
     return sysExec( ( String[] )args );
@@ -149,6 +153,7 @@ case INTERRUPT_SOFTWARE: // System calls
     return OK;
     case READ:
     switch ( param ) {
+
     case STDIN:
         try {
         String s = input.readLine(); // read a keyboard input
@@ -197,17 +202,42 @@ case INTERRUPT_SOFTWARE: // System calls
     case CFLUSH:  // to be implemented in assignment 4
     cache.flush( );
     return OK;
+
     case OPEN:    // to be implemented in project
-    return OK;
+        Object[] objArgs = (Object[]) args;
+        fs.open((String) objArgs[0], (String) objArgs[1]);
+        return OK;
+
     case CLOSE:   // to be implemented in project
-    return OK;
+        Object o = new Object();
+        if(fs.close((FileTableEntry) o) == true){
+            return 1;
+        } else{
+            return 0;
+        }
+
     case SIZE:    // to be implemented in project
-    return OK;
+        Object a = new Object();
+    return fs.fsize((FileTableEntry) a);
+
     case SEEK:    // to be implemented in project
-    return OK;
+        Object[] temp = (Object[]) args;
+    return fs.seek((FileTableEntry) temp[0], param, param);
+
+
     case FORMAT:  // to be implemented in project
-    return OK;
+        if(fs.format((param)) == true){
+            return 1;
+        } else {
+            return 0;
+        }
+
     case DELETE:  // to be implemented in project
+        if(fs.delete((String) objArgs[0]) == true){
+            return 1;
+        } else {
+            return 0;
+        }
     return OK;
     }
     return ERROR;

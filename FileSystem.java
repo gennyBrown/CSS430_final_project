@@ -36,7 +36,7 @@ public class FileSystem{
 
     }
 
-  /* boolean format( int files ){
+   boolean format( int files ){
         /*
         * Formats the disk (Disk.java’s data contents).
         * The files parameter specifies the maximum number of files to be created
@@ -44,9 +44,10 @@ public class FileSystem{
         * The return value is 0 on success, and -1 otherwise.
         * */
 
+       superblock.format(files);
         //call deallocAllBlock(fileEntry)
-     //   return false;
-    //}
+       return false;
+    }
 
     /*
      * Opens the file specified by the fileName string in the given mode
@@ -154,7 +155,7 @@ public class FileSystem{
 
     int fsize( FileTableEntry ftEnt ){
         //get length from inode
-        return ftEnt.inode.length;
+        return ftEnt.inode.fileLength;
     }
 
     int read( FileTableEntry ftEnt, byte[] buffer ){
@@ -195,12 +196,18 @@ public class FileSystem{
         *  that have been written, or a negative value upon an error.
         * */
 
+        int bufLength = buffer.length;
         return 0;
     }
 
     private boolean dealllocAllBlocks( FileTableEntry ftEnt ){
         //deallocate all blocks associated with the given entry
         //not all blocks in table
+
+        for(int i = 0; i < ftEnt.inode.directPtrs.length; i++){
+            ftEnt.inode.directPtrs[i] = -1;
+            ftEnt.inode.indirectPtr = -1;
+        }
 
         SysLib.format(ftEnt.count);
         //call format(4)
@@ -213,8 +220,16 @@ public class FileSystem{
         //will fail if file is still open by another thread
         //blocks will need to be deallocated
 
-        //get iNumber for filename
-        //call dir.ifree(iNumber);
+        //get entry and check count
+        //if more than 0, can't delete
+        if(filetable.getEntry(directory.namei(filename)).count > 0){
+            return false;
+        } else if( filetable.getEntry(directory.namei(filename)).count == 0){
+            dealllocAllBlocks(filetable.getEntry(directory.namei(filename)));   //deallocate blocks
+            filetable.ffree(filetable.getEntry(directory.namei(filename)));     //free the entry
+            directory.ifree(directory.namei(filename));                     //free the inumber
+            return true;
+        }
         return false;
     }
 
@@ -267,8 +282,8 @@ public class FileSystem{
                 ftEnt.seekPtr = 0;
                 return ftEnt.seekPtr;
             }
-            if(ftEnt.seekPtr > ftEnt.inode.length){
-                ftEnt.seekPtr = ftEnt.inode.length;
+            if(ftEnt.seekPtr > ftEnt.inode.fileLength){
+                ftEnt.seekPtr = ftEnt.inode.fileLength;
                 return ftEnt.seekPtr;
             }
             return ftEnt.seekPtr;
@@ -284,8 +299,8 @@ public class FileSystem{
                 ftEnt.seekPtr = 0;
                 return ftEnt.seekPtr;
             }
-            if(ftEnt.seekPtr > ftEnt.inode.length){
-                ftEnt.seekPtr = ftEnt.inode.length;
+            if(ftEnt.seekPtr > ftEnt.inode.fileLength){
+                ftEnt.seekPtr = ftEnt.inode.fileLength;
                 return ftEnt.seekPtr;
             }
 
@@ -304,8 +319,8 @@ public class FileSystem{
                 ftEnt.seekPtr = 0;
                 return ftEnt.seekPtr;
             }
-            if(ftEnt.seekPtr > ftEnt.inode.length){
-                ftEnt.seekPtr = ftEnt.inode.length;
+            if(ftEnt.seekPtr > ftEnt.inode.fileLength){
+                ftEnt.seekPtr = ftEnt.inode.fileLength;
                 return ftEnt.seekPtr;
             }
             return  ftEnt.seekPtr;

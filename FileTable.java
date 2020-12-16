@@ -46,7 +46,7 @@ public class FileTable {
         FileTableEntry fileEntry = new FileTableEntry(iNode, dir.ialloc(filename), mode);
 
         // increment this inode's count
-        iNode.count++;
+        iNode.fileTableCount++;
 
         // immediately write back this inode to the disk
         for(int i = 0; i < tempArray.length; i ++){
