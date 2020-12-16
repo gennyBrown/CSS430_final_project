@@ -1,14 +1,31 @@
+/*
+ * Updates made on 12/15/2020
+ * Creation date 12/7/2020
+ *
+ * by Genny Brown
+ * for final project
+ *
+ * single level directory
+ * contains filenames mapped to inumbers and file sizes
+ * The directory receives the maximum number of inodes to be created,
+ * (i.e., thus the max. number of files to be created) and keeps track of which inode numbers are in use.
+ *  Since the directory itself is considered a file, its contents are maintained by an inode, specifically inode 0.
+ *  This is located in the first 32 bytes of the disk block 1.
+ * Upon booting ThreadOS, the file system instantiates the Directory class
+ *  as the root directory through its constructor, reads the file from the disk
+ *  -- found through inode 0, at 32 bytes of the disk block 1 --
+ *  and initializes the Directory instance with file contents.
+ * Prior to shutdown, the file system must write back the Directory information onto the disk.
+ *  The methods bytes2directory( )  and directory2bytes are used to initialize the Directory instance
+ *  with a byte array read from the disk, and convert the Directory instance into a byte array,
+ *  which will later be written back to the disk.
+ * */
 import java.util.*;
-//import javafx.util.*;
 
 public class Directory {
     private static int maxChars = 30; // max characters of each file name
 
-    Pair pair = new Pair();
     HashMap<String, Short> filenameInumberMap = new HashMap<String, Short>();
-    //change to set of type pair index = maxInumber-1
-
-
 
     // Directory entries
     private int fsize[];        // each element stores a different file size.

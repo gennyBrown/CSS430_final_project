@@ -17,7 +17,7 @@
  *
  *
  * Created by Genny Brown
- * 12-15-2020
+ * 12-7-2020
  * */
 import java.util.*;
 
@@ -61,6 +61,7 @@ public class FileTable {
         return fileEntry;
     }
 
+    //frees an entry from the table
     public synchronized boolean ffree( FileTableEntry e ) {
         for(int j = 0; j < table.size(); j++){
             table.get(j);
