@@ -1,3 +1,9 @@
+/*
+* File creates by Genny Brown and Jonathon Young
+* creation date 12/7/2020
+*
+* Entrance to the file system
+* */
 import java.util.*;
 
 public class FileSystem{
@@ -228,6 +234,7 @@ public class FileSystem{
             dealllocAllBlocks(filetable.getEntry(directory.namei(filename)));   //deallocate blocks
             filetable.ffree(filetable.getEntry(directory.namei(filename)));     //free the entry
             directory.ifree(directory.namei(filename));                     //free the inumber
+            directory.filenameInumberMap.remove(filename);              //remove from the map
             return true;
         }
         return false;
