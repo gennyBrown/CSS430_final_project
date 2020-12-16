@@ -36,7 +36,7 @@ public class FileSystem{
 
     }
 
-   boolean format( int files ){
+    boolean format( int files ){
         /*
         * Formats the disk (Disk.java’s data contents).
         * The files parameter specifies the maximum number of files to be created
@@ -172,9 +172,41 @@ public class FileSystem{
 
                 The return value is the number of bytes that have been read, or a negative value upon an error.
         */
+        // iNode flags unused (= 0), used(= 1), read(= 2), write(= 3), delete(= 4)
+        int toRead = bufffer.length;    // number of bytes to read from file
+        int retRead = 0;    // return value of bytes read
+        // ***check status of node***
+        // unused or delete exit
+        // should not be able to delete while reading
+        // should not be able to read an unused node
+        if (ftEnt.inode.statusFlag == 0 || ftEnt.inode.statusFlag == 4){  
+            return -1;  
+        }
+        // can it read while it writes? Assuming it can up to the point the request is made
+        // if flag is set to read will this stop writing calls? (only multi-threading?)
+        ftEnt.inode.statusFlag = 2;     // set to read
+        // create block for buffer
+        byte[] iBlock = new byte[Disk.blockSize];
+        int offset = ftEnt.seekPtr / Disk.blockSize;
+        // blockNum will need Inode seekPtr from ftEnt. Assuming seekPtr is > 0
+        // offset < ftEnt.inode.directPtrs.length ? ftEnt.inode.directPtrs[offset] : indirect pointer
+        int blockNum = ftEnt.inode.directPtrs[offset];
+        while (retRead < toRead){
+            // make sure read is valid
+            if (SysLib.rawread(blockNum, iBlock) == -1) {
+                return -1;
+            }
+            // TODO: check for data in other blocks? 
+
+            retRead = toRead;
+            // promote pointer to end of file
+            seek(ftEnt, retRead, SEEK_CUR);
 
 
-        return 0;
+        }
+        // return flag ot used
+        ftEnt.inode.statusFlag = 1;
+        return retRead;
     }
 
     int write (FileTableEntry ftEnt, byte[] buffer ){

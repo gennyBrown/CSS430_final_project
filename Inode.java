@@ -96,4 +96,31 @@ public class Inode {
         SysLib.short2byte(indirectPtr, iBlock, offset + 2); // space for indirect pointer offset (2 bytes)
         SysLib.rawwrite(blockNum, iBlock);  // write to disk
     }
+    /*
+        int findTargetBlock(the seek pointer offset)
+        - finds the index of the desired block from the given seekPtr offset position
+        - this will help you determine whether the block can be reached through direct 
+        acces or through indirect access by calculating the block index (number) where 
+        the pointer is
+        - will return the target block
+
+        boolean registerIndexBlock(the freeblock)
+        - it is used to set the Index block for indirect access,  when the direct-blocks
+        have all been used, you need an Index block for the first level indirect-access 
+        blocks
+        - receives a desired free block (e.g.  the next available one) where the Index 
+        block goes and adds it to the inode.
+        -  when indirect access is needed the index block will be the free block and will hold 
+        an array of pointers to data blocks
+
+        int registerTargetBlock(seekPtr,  freeblock)
+        - registers a target block based on the seekPtr and the freeblock 
+        - the target block is basically seekPtr/MAX_BLOCK_SIZE_BYTES, so if the block 
+        is within the direct size indexing add it to the direct-blocks array
+        - if it is in indirect,  must check for the IndexBlock to have been created, if it is
+        created, just add the new block to the set of blocks accessed indirectly
+        - the int it returs is 0 for success, -1,-2 for errors related to registering into
+        the direct and indirect respectively
+
+    */
 }
