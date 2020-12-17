@@ -2,7 +2,7 @@
  * Updates made on 12/15/2020
  * Creation date 12/7/2020
  *
- * by Genny Brown
+ * by Genny Brown, Jonathan Young
  * for final project
  *
  * single level directory

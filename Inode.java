@@ -80,21 +80,21 @@ public class Inode {
     }
 
     // save to disk as the i-th inode
-    int toDisk( short iNumber ) {
+    void toDisk( short iNumber ) {
         int blockNum = (iNumber / 16) + 1;  // 16 iNodes stored in one block, picks the next block
         int offset = iNodeSize * iNumber;   // offset based off size of inode (32B) spaced by the argument iNumber     
         byte[] iBlock = new byte[Disk.blockSize];   // new block by apple
         SysLib.rawread(blockNum, iBlock);   // read from that block
         // short2byte(short to convert, byte array, offset destination)
-        SysLib.short2byte(fileLength, iBlock, offset);
-        SysLib.short2byte(fileTableCount, iBlock, offset + 4);  // fileTable spaced by fileLength offset (4 bytes)
-        SysLib.short2byte(statusFlag, iBlock, offset + 2);  // statusFlag spaced by fileTableCount offset (2 bytes)
+        SysLib.short2bytes((short)fileLength, iBlock, offset);
+        SysLib.short2bytes(fileTableCount, iBlock, offset + 4);  // fileTable spaced by fileLength offset (4 bytes)
+        SysLib.short2bytes(statusFlag, iBlock, offset + 2);  // statusFlag spaced by fileTableCount offset (2 bytes)
         // loop for each pointer by pointer size offset (2 bytes)
         for (int i = 0; i < directSizePtr; i++){
             offset += 2;
-            SysLib.short2byte(directPtrs[i], iBlock, offset);
+            SysLib.short2bytes(directPtrs[i], iBlock, offset);
         }
-        SysLib.short2byte(indirectPtr, iBlock, offset + 2); // space for indirect pointer offset (2 bytes)
+        SysLib.short2bytes(indirectPtr, iBlock, offset + 2); // space for indirect pointer offset (2 bytes)
         SysLib.rawwrite(blockNum, iBlock);  // write to disk
     }
     /*
@@ -115,6 +115,12 @@ public class Inode {
         }
         byte[] iBlock = new byte[Disk.blockSize];   // one more thing
         // block is in indirect block access, multiply by 2 for indirect index
+        // go to indirect
+        // it must exist
+        if (indirectPtr < 0){
+            return -1;
+        }
+        SysLib.rawread(indirectPtr, iBlock);
         return SysLib.bytes2int(iBlock, (offset - directSizePtr) * 2);
     }
 
@@ -175,7 +181,7 @@ public class Inode {
         if (indirectPtr < 0){   // indirect addressing has not be instantiated
             return -2;
         }
-        byte[] iBlock = new byte[Disk.diskSize];    // load indirect pointer
+        byte[] iBlock = new byte[Disk.blockSize];    // load indirect pointer
         SysLib.rawread(indirectPtr, iBlock);
         for (int i = 0; i < 512; i += 2){ // find first space in indirect
             if (SysLib.bytes2int(iBlock, i) == 0){

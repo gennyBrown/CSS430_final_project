@@ -4,7 +4,7 @@
 
 /*
 * Updates made on 12/15/2020
-* by Genny Brown
+* by Genny Brown, Jonathan Young
 * for final project
 * */
 import java.io.BufferedReader;
@@ -181,10 +181,15 @@ case INTERRUPT_SOFTWARE: // System calls
     case STDOUT:
     case STDERR:
             System.out.println("threadOS: caused read errors");
-        return ERROR;
+        default:
+            myTcb = scheduler.getMyTcb();
+            // check that myTcb ! null
+            // check ft !null
+            FileTableEntry ft = myTcb.getFtEnt(param);
+            return fs.read(ft, (byte[])args);
     }
     // return FileSystem.read( param, byte args[] );
-    return ERROR;
+    //return ERROR;
     case WRITE:
     switch ( param ) {
     case STDIN:
@@ -239,12 +244,12 @@ case INTERRUPT_SOFTWARE: // System calls
         }
 
     case DELETE:  // to be implemented in project
-        if(fs.delete((String) objArgs[0]) == true){
+        if(fs.delete((String) args) == true){
             return 1;
         } else {
             return 0;
         }
-    return OK;
+    //return OK;
     }
     return ERROR;
 case INTERRUPT_DISK: // Disk interrupts

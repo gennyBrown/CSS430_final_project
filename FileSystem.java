@@ -51,7 +51,12 @@ public class FileSystem{
         * The return value is 0 on success, and -1 otherwise.
         * */
 
-       superblock.format(files);
+        // check that this is a valid call
+        if (filetable.fempty()){
+            superblock.format(files);
+            return true;
+        }
+
         //call deallocAllBlock(fileEntry)
        return false;
     }
@@ -127,16 +132,13 @@ public class FileSystem{
         return null;
     }
 
-    // marked as an int? need to change type to synchronized or call sync()?
-    boolean close( FileTableEntry ftEnt ){
-        //removes the entry from the file descriptor table in tCB
-        //decrements count in entry
-
-        /* Closes the file corresponding to fd, commits all file transactions on this file
+    /* Closes the file corresponding to fd, commits all file transactions on this file
         Unregisters fd from the user file descriptor table of the calling thread's TCB.
         The return value is 0 in success, otherwise -1.
         * */
-
+    boolean close( FileTableEntry ftEnt ){
+        //removes the entry from the file descriptor table in tCB
+        //decrements count in entry
 
        //check set to see if open
         for(int i= 0; i< filetable.table.size(); i++){
@@ -147,7 +149,10 @@ public class FileSystem{
                 if(ftEnt.count > 0){
                     //decrement count
                     ftEnt.count--;
-
+                    // reduce the number of files pointing to table
+                    if (ftEnt.inode.fileTableCount > 0){
+                        ftEnt.inode.fileTableCount--;
+                    }
                     //entry closed
                     return true;
 
@@ -166,117 +171,167 @@ public class FileSystem{
         return ftEnt.inode.fileLength;
     }
 
-    int read( FileTableEntry ftEnt, byte[] buffer ){
-        /*
+    /*
         Reads up to buffer.length bytes from the file indicated by the file descriptor fd,
         starting at the position currently pointed to by the seek pointer.
-
         If bytes remaining between the current seek pointer
         and the end of file are less than buffer.length:
-
         SysLib.read reads as many bytes as possible and puts them into the beginning of buffer.
-
                 It increments the seek pointer by the number of bytes to have been read.
-
                 The return value is the number of bytes that have been read, or a negative value upon an error.
         */
-        // ***check status of node***
-        // unused or delete exit
-        // should not be able to delete while reading
-        // should not be able to read an unused node
-        if (ftEnt.inode.statusFlag == 0 || ftEnt.inode.statusFlag == 4){  
-            return -1;  
-        }
+    int read( FileTableEntry ftEnt, byte[] buffer ){
+
         // iNode flags unused (= 0), used(= 1), read(= 2), write(= 3), delete(= 4)
         int retRead = 0;    // return value of bytes read
+        // loop through until file is reached end
         // read starting at the position currently pointed to by the seek pointer
-        int offset = ftEnt.seekPtr / Disk.blockSize;
-        // block number
-        int blockNum = ftEnt.inode.findTargetBlock(offset);
-        // find remaining file size
-        int remainBytes = Disk.blockSize - offset;
-        // compare amount 'buffer.length' to the size of the (file size - offset)
-        int toRead = remainBytes < buffer.length ? remainBytes : buffer.length;    // number of bytes to read from file
+         while (retRead < buffer.length){
+             // ***check status of node***
+             // unused or delete exit
+             // should not be able to read while delete
+             // should not be able to read an unused node
+             if (ftEnt.inode.statusFlag == 0 || ftEnt.inode.statusFlag == 4){
+                 return -1;
+             }
+             int offset = ftEnt.seekPtr / Disk.blockSize;
+             // block number
+             int blockNum = ftEnt.inode.findTargetBlock(offset);
+             if (blockNum < 0){     // error finding block
+                 return -1;
+             }
+             // find remaining file size
+             int remainBytes = Disk.blockSize - offset;
+             if (remainBytes < 1){  // read all bytes
+                 if (retRead == buffer.length){
+                     return retRead;
+                 }
+                 SysLib.cerr("ERROR: Read file error");
+                 return retRead;
+             }
+             // compare amount 'buffer.length' to the size of the (file size - offset)
+             int toRead = remainBytes < buffer.length ? remainBytes : buffer.length;    // number of bytes to read from file
 
-        // can it read while it writes? Assuming it can up to the point the request is made
-        // if flag is set to read will this stop writing calls? (only multi-threading?)
-        ftEnt.inode.statusFlag = 2;     // set to read
-        // create block for buffer
-        byte[] iBlock = new byte[Disk.blockSize];
-        // blockNum will need Inode seekPtr from ftEnt. Assuming seekPtr is > 0
-        // offset < ftEnt.inode.directPtrs.length ? ftEnt.inode.directPtrs[offset] : indirect pointer
-        // int blockNum = ftEnt.inode.directPtrs[offset];
-        //while (retRead < toRead){
-            // make sure read is valid
-            if (SysLib.rawread(blockNum, iBlock) == -1) {
+             // can it read while it writes? Assuming it can up to the point the request is made
+             // if flag is set to read will this stop writing calls? (only multi-threading?)
+             ftEnt.inode.statusFlag = 2;     // set to read
+             // create block for buffer
+             byte[] iBlock = new byte[Disk.blockSize];
+             // blockNum will need Inode seekPtr from ftEnt. Assuming seekPtr is > 0
+             // offset < ftEnt.inode.directPtrs.length ? ftEnt.inode.directPtrs[offset] : indirect pointer
+             // int blockNum = ftEnt.inode.directPtrs[offset];
+
+             // make sure read is valid
+             if (SysLib.rawread(blockNum, iBlock) == -1) {
                 return -1;
-            }
-            // TODO: check for data in other blocks? 
+             }
+             //if (toRead < buffer.length - retRead){ // block does not contain all needed data
+                 System.arraycopy(iBlock, ftEnt.seekPtr, buffer, retRead, toRead);
 
-            retRead = toRead;
-            // increments the seek pointer by the number of bytes to have been read
-            seek(ftEnt, retRead, SEEK_CUR);
-        //}
-        //decrement count of threads at that file table entry
-        if(ftEnt.count > 0){
-            ftEnt.count--;
-        }
-        // return flag to used
-        ftEnt.inode.statusFlag = 1;
-    //}
+             //}
+             retRead += toRead;
+             // increments the seek pointer by the number of bytes to have been read
+             seek(ftEnt, retRead, SEEK_CUR);
+             //decrement count of threads at that file table entry
+             if(ftEnt.count > 0){
+                ftEnt.count--;
+             }
+             // return flag to used
+             ftEnt.inode.statusFlag = 1;
+    }
     sync();
     return retRead;
     }
 
+    /*
+     * Writes the contents of buffer to the file indicated by fd
+     * starting at the position indicated by the seek pointer.
+     * The operation may overwrite existing data in the file
+     * and/or append to the end of the file.
+     * SysLib.write increments the seek pointer
+     * by the number of bytes to have been written.
+     * The return value is the number of bytes
+     *  that have been written, or a negative value upon an error.
+     * */
     int write (FileTableEntry ftEnt, byte[] buffer ){
-        //write to inode directpoint
-        //use syslib.write or rawwrite (research the right one)
-        //write in order
-        //22 bytes per pointer
-        //if over 22 need to write to the next direct pointer
-
-
-        /*
-        * Writes the contents of buffer to the file indicated by fd
-        * starting at the position indicated by the seek pointer.
-        * The operation may overwrite existing data in the file
-        * and/or append to the end of the file.
-        * SysLib.write increments the seek pointer
-        * by the number of bytes to have been written.
-        * The return value is the number of bytes
-        *  that have been written, or a negative value upon an error.
-        * */
         if (ftEnt == null){
             return -1;
         }
-        // check status flag for validity
-        // iNode flags unused (= 0), used(= 1), read(= 2), write(= 3), delete(= 4)
-        if (ftEnt.inode.statusFlag == 4){   // can't write to a deleted node
-            return -1;
-        }
         int retBytes = 0;   // return number of bytes written
-        // write starting at the position currently pointed to by the seek pointer
-        int offset = ftEnt.seekPtr / Disk.blockSize;
-        // block number
-        int blockNum = ftEnt.inode.findTargetBlock(offset);
-        // find remaining file size
-        int remainBytes = Disk.blockSize - offset;
-        // compare amount 'buffer.length' to the size of the (file size - offset)
-        int toWrite = remainBytes < buffer.length ? remainBytes : buffer.length;    // number of bytes to read from file
-        // set to write
-        ftEnt.inode.statusFlag = 3;     
-        // create block for buffer
-        byte[] iBlock = new byte[Disk.blockSize];
-        // assumming writing cannot happen unless prompted by other flags
+        int toWrite = buffer.length;
+        while (retBytes < buffer.length) {
 
-        //SysLib.rawread(blockNum, iBlock);
-        SysLib.rawwrite(blockNum, iBlock);
-        seek(ftEnt, toWrite, SEEK_CUR);
-        if (ftEnt.count > 0){
-            ftEnt.count--;
+            // check status flag for validity
+            // iNode flags unused (= 0), used(= 1), read(= 2), write(= 3), delete(= 4)
+            if (ftEnt.inode.statusFlag == 4) {   // can't write to a deleted node
+                return -1;
+            }
+
+            // write starting at the position currently pointed to by the seek pointer
+            int offset = ftEnt.seekPtr / Disk.blockSize;
+            // block number
+            int blockNum = ftEnt.inode.findTargetBlock(offset);
+            if (blockNum < 0){     // error finding block, make a new one
+                blockNum = superblock.getFreeBlock();
+                if (blockNum < 0){  // no more blocks able to write to
+                    return -1;
+                }
+                // register block. Returns: 0 success (direct), -1 fail (direct), -2 fail (indirect)
+                int swi = ftEnt.inode.registerTargetBlock(ftEnt.seekPtr, blockNum);
+                switch(swi){
+                    case -1:        // fail to write to direct when it should
+                        return -1;
+                    case -2:        // fail to write to indirect, try to create indirect
+                        int tempB = superblock.getFreeBlock();
+                        if (!ftEnt.inode.registerIndexBlock(tempB)){
+                            return -1;
+                        }
+                        if (ftEnt.inode.registerTargetBlock(ftEnt.seekPtr, blockNum) != 0){
+                            return -1;
+                        }
+                }
+
+            }
+
+            // create block for buffer
+            byte[] iBlock = new byte[Disk.blockSize];
+            if (SysLib.rawread(blockNum, iBlock) < 0){
+                return -1;
+            }
+            // find remaining file size
+            int remainBytes = Disk.blockSize - offset;
+            if (remainBytes < 1){  // read all bytes
+                if (retBytes == buffer.length){
+                    return retBytes;
+                }
+                SysLib.cerr("ERROR: Write file error");
+                return retBytes;
+            }
+            // compare amount 'buffer.length' to the size of the (file size - offset)
+            toWrite = remainBytes < buffer.length ? remainBytes : buffer.length;    // number of bytes to read from file
+            // set to write
+            ftEnt.inode.statusFlag = 3;
+            // assumming writing cannot happen unless prompted by other flags
+            System.arraycopy(buffer, retBytes, iBlock, offset, toWrite);
+
+            //SysLib.rawread(blockNum, iBlock);
+            SysLib.rawwrite(blockNum, iBlock);
+            seek(ftEnt, toWrite, SEEK_CUR);
+            if (ftEnt.count > 0) {
+                ftEnt.count--;
+            }
+            ftEnt.inode.statusFlag = 1;
+            retBytes += toWrite;
+
+            ftEnt.inode.toDisk(ftEnt.iNumber); // store written data
         }
-        ftEnt.inode.statusFlag = 1;
+        if (ftEnt.mode.equals("a")){
+            ftEnt.inode.fileLength = retBytes + ftEnt.inode.fileLength;
+        } else if (ftEnt.mode.equals("w+")) {
+            ftEnt.inode.fileLength += toWrite;
+        } else {
 
+        }
         return retBytes;
     }
 

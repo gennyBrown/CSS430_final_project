@@ -23,7 +23,7 @@ public class Superblock {
     public int freeList;      //the block number of the free list's head
 
     //constructor
-    public SuperBlock(int diskSize){
+    public Superblock(int diskSize){
         // read the superblock from disk and store as byte array of 512(max disk block size)
         byte[] superBlock = new byte[Disk.blockSize];
         SysLib.rawread(0, superBlock);
@@ -46,17 +46,17 @@ public class Superblock {
     // format(int ): clears out disk info
     // int files = number of iNodes to create
     public synchronized void format(int files){
-        int totaleBlocks = 1000;
+        //int totalBlocks = 1000;
         int totalInodes = files;    // number of inodes per block (marked to match argument)
-        int freeList = 2;           // TODO: this was the default value from slide
+        //int freeList = 2;           // TODO: this was the default value from slide
         byte[] superBlock = new byte[512];  // instantiate superblock to a 512 byte array
         // void int2bytes( int i, byte[] b, int offset )
         // converts the integer i into four bytes, and then 
         //      copied those four bytes into
         //      b[offset], b[offset+1], b[offset+2], b[offset+3]
-        SysLib.int2bytes(totalBlocks, superBlock, 0);
+        SysLib.int2bytes(this.totalBlocks, superBlock, 0);
         SysLib.int2bytes(totalInodes, superBlock, 4);
-        SysLib.int2bytes(freeList, superBlock, 8);
+        SysLib.int2bytes(this.freeList, superBlock, 8);
         // block #0 as the superblock. For accessing this block, 
         //     you should call SysLib.rawread( 0, data ) where data is a 512-byte array
         // write superblock to disk
@@ -81,13 +81,29 @@ public class Superblock {
 
     // : Dequeue the top block from the free list
     public short getFreeBlock(){
-        short ret = (short)freeList;
+        if (this.freeList == -1){
+            return -1;
+        }
+        short ret = (short)this.freeList;
         byte[] iBlock = new byte[Disk.blockSize];
-        SysLib.rawread(freeList, iBlock);
-        freeList = SysLib.bytes2int(iBlock, 0);
+        SysLib.rawread(this.freeList, iBlock);
+        this.freeList = SysLib.bytes2int(iBlock, 0);
         return ret;
     }
-
-    // returnBlock(block?): Enqueue a given block to the end of the free list
+    //  Enqueue a given block to the end of the free list
+    public boolean returnBlock(int blockNum){
+        if (blockNum < 0 || blockNum >= 1000){  // check bounds of request
+            return false;
+        }
+        byte[] iBlock = new byte[Disk.blockSize];   // and another thing
+        // returning a free block should make sure data is not already still in that block
+        for (int i = 0; i < Disk.blockSize; i++){
+            iBlock[i] = 0;
+        }
+        SysLib.int2bytes(this.freeList, iBlock, 0);
+        SysLib.rawread(blockNum, iBlock);   // load the clean buffer into blockNum
+        this.freeList = blockNum;   // the freeList is now loaded with a clean block
+        return true;
+    }
 
 }

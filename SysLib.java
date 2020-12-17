@@ -1,6 +1,6 @@
 /*
  * Updates made on 12/15/2020
- * by Genny Brown
+ * by Genny Brown, Jonathan Young
  * for final project
  * */
 import java.util.*;
@@ -96,12 +96,12 @@ public class SysLib {
                 Kernel.OPEN, 0, (Object) args);
     }
 
-    public static int read(FileTableEntry ftEnt, byte[] buffer){         //added for final project
+    public static int read(int ftEnt, byte[] buffer){         //added for final project
         return Kernel.interrupt(Kernel.INTERRUPT_SOFTWARE,
-                Kernel.READ,0, , buffer);
+                Kernel.READ,0, buffer);
 
     }
-    public static int seek(FileTableEntry ftEnt, int offset, int whence){         //added for final project
+    public static int seek(int ftEnt, int offset, int whence){         //added for final project
         int[] seekargs = {offset, whence};
         return  Kernel.interrupt(Kernel.INTERRUPT_SOFTWARE,
                 Kernel.SEEK, 0, seekargs);
@@ -112,16 +112,16 @@ public class SysLib {
                 Kernel.DELETE, 0, filename);
     }
 
-    public static int fsize(FileTableEntry ftEnt){                       //added for final project
+    public static int fsize(int ftEnt){                       //added for final project
         return  Kernel.interrupt(Kernel.INTERRUPT_SOFTWARE,
                 Kernel.SIZE, 0, ftEnt);
     }
 
-    public static int write(FileTableEntry ftEnt, byte[] buffer){                    //added for final project
+    public static int write(int ftEnt, byte[] buffer){                    //added for final project
         return Kernel.interrupt(Kernel.INTERRUPT_SOFTWARE,
                 Kernel.WRITE, 0, buffer);
     }
-    public static int close(FileTableEntry ftEnt){                               //added for final project
+    public static int close(int ftEnt){                               //added for final project
         return Kernel.interrupt(Kernel.INTERRUPT_SOFTWARE,
                 Kernel.CLOSE, 0, ftEnt);
     }
